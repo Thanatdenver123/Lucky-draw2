@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucky Draw - Restore Buttons</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;500;800&display=swap');
+
+        /* 1. สีหน้าเว็บเปลี่ยนสีตลอด (Dynamic Background) */
+        body { 
+            font-family: 'Kanit', sans-serif; 
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh; color: white; text-align: center; padding: 20px; margin: 0; 
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .main-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .game-section { flex: 2; min-width: 400px; }
+        .grid-container { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+            gap: 15px; background: rgba(255, 255, 255, 0.15); 
+            backdrop-filter: blur(10px); padding: 25px; border-radius: 25px; border: 2px solid #fff;
+        }
+
+        /* การ์ดรายชื่อและรูปภาพ (หน้าไม่หาย) */
+        .user-card { background: white; border-radius: 15px; padding: 10px; position: relative; box-shadow: 0 8px 15px rgba(0,0,0,0.2); }
+        .img-wrapper { width: 100%; height: 180px; background: #f8f9fa; border-radius: 10px; overflow: hidden; }
+        .user-card img { width: 100%; height: 100%; object-fit: contain; object-position: top; }
+        .user-card span { display: block; font-size: 14px; margin-top: 8px; color: #333; font-weight: bold; }
+
+        /* ปุ่มลบถังขยะ */
+        .delete-btn {
+            position: absolute; top: -10px; right: -10px; background: #ff4757; color: white;
+            border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; z-index: 10;
+        }
+        .delete-btn svg { width: 16px; height: 16px; fill: white; }
+
+        .user-card.active { transform: scale(1.1); outline: 5px solid #ffde7d; z-index: 5; }
+
+        /* โซนควบคุม */
+        .control-section { 
+            flex: 1; min-width: 320px; background: white; padding: 25px; 
+            border-radius: 25px; color: #333; text-align: left; height: fit-content;
+        }
+        .input-group { background: #f1f2f6; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
+        input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ddd; font-family: 'Kanit'; }
+        
+        .file-label { display: block; background: #57606f; color: white; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; margin-bottom: 10px; font-size: 14px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: 'Kanit'; }
+        .add-btn { background: #2ed573; color: white; margin-bottom: 5px; }
+        .save-btn { background: #3498db; color: white; margin-bottom: 15px; font-size: 14px; }
+        .spin-btn { background: #ffa502; color: white; font-size: 24px; margin-bottom: 20px; box-shadow: 0 5px 0 #e67e22; }
+
+        .winner-list { max-height: 250px; overflow-y: auto; border-top: 2px solid #eee; margin-top: 15px; }
+        .winner-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; background: #f8f9fa; border-radius: 8px; margin-top: 5px; }
+        .winner-item img { width: 40px; height: 40px; object-fit: cover; object-position: top; border-radius: 5px; }
+
+        /* --- MODAL (ที่รวมปุ่มตกลง/โมฆะ) --- */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); }
+        .modal-content { 
+            background: white; margin: 5vh auto; padding: 25px; border-radius: 30px; 
+            width: 90%; max-width: 480px; text-align: center; position: relative;
+        }
+        .winner-display-box { 
+            width: 100%; height: 350px; background: white; 
+            border-radius: 20px; border: 1px solid #eee; display: flex; align-items: flex-start; justify-content: center; overflow: hidden;
+        }
+        .winner-display-box img { width: 100%; height: 100%; object-fit: contain; object-position: top; }
+        
+        /* จัดวางปุ่มให้เห็นชัด */
+        .modal-btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .confirm-btn { background: #2ed573; color: white; flex: 1.5; padding: 15px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; font-family: 'Kanit'; }
+        .cancel-btn { background: #ff4757; color: white; flex: 1; padding: 15px; border: none; border-radius: 12px; font-size: 16px; cursor: pointer; font-family: 'Kanit'; }
+    </style>
+</head>
+<body>
+
+    <h1>🌈 LUCKY DRAW RANDOM BY THANAT YODWONG 🎁</h1>
+
+    <div class="main-container">
+        <div class="game-section">
+            <button id="spinBtn" class="btn spin-btn" onclick="startRandom()">START SPIN! สุ่มรางวัล</button>
+            <div id="grid" class="grid-container"></div>
+        </div>
+
+        <div class="control-section">
+            <button class="btn save-btn" onclick="manualSave()">💾 บันทึกชั่วคราว (Session)</button>
+            <div class="input-group">
+                <input type="text" id="newName" placeholder="พิมพ์หมายเลขของขวัญและชื่อเจ้าของ...">
+                <label class="file-label" for="newImg" id="fileLabel">📁 เลือกรูปภาพ</label>
+                <input type="file" id="newImg" accept="image/*" style="display:none" onchange="previewFile()">
+                <button class="btn add-btn" onclick="addUser()">+ เพิ่มรายชื่อ</button>
+            </div>
+            <p>จำนวนผู้สุ่มเหลือ: <span id="count" style="font-weight:bold; color:red;">0</span> คน</p>
+            <div id="winnerList" class="winner-list"></div>
+            <button onclick="resetData()" style="background:none; border:none; color:#aaa; cursor:pointer; font-size:12px; margin-top:15px;">ล้างข้อมูลทั้งหมด</button>
+        </div>
+    </div>
+
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <h2 style="color:#ff4757; margin:0 0 10px 0;">🎉 ยินดีด้วยครับ 🎉</h2>
+            <div class="winner-display-box">
+                <img id="winnerImg" src="">
+            </div>
+            <h1 id="winnerName" style="color:#333; margin:10px 0; font-size: 32px;">...</h1>
+            
+            <div class="modal-btn-group">
+                <button id="btnOK" class="confirm-btn" onclick="confirmWinner()">✅ ตกลง (รับรางวัล)</button>
+                <button id="btnCancel" class="cancel-btn" onclick="closeModal()">❌ โมฆะ (สุ่มใหม่)</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="tickSound" src="https://www.soundjay.com/buttons/button-10.mp3"></audio>
+    <audio id="cheerSound" src="https://www.myinstants.com/media/sounds/cheer.mp3"></audio>
+
+    <script>
+        // ใช้ sessionStorage: ปิด Browser ข้อมูลล้างทิ้งอัตโนมัติ
+        let users = JSON.parse(sessionStorage.getItem('session_draw_v5')) || [];
+        let winners = JSON.parse(sessionStorage.getItem('session_winners_v5')) || [];
+        let selectedWinner = null;
+
+        function previewFile() {
+            const file = document.getElementById('newImg').files[0];
+            document.getElementById('fileLabel').innerText = file ? "✅ " + file.name : "📁 เลือกรูปภาพ";
+        }
+
+        async function addUser() {
+            const name = document.getElementById('newName').value.trim();
+            const file = document.getElementById('newImg').files[0];
+            if (!name) return alert("กรุณาใส่ชื่อ");
+            let imgBase64 = "https://via.placeholder.com/400x500?text=No+Image";
+            if (file) imgBase64 = await compressImage(file);
+            users.push({ id: Date.now(), name, img: imgBase64 });
+            document.getElementById('newName').value = '';
+            document.getElementById('newImg').value = '';
+            document.getElementById('fileLabel').innerText = "📁 เลือกรูปภาพ";
+            save();
+        }
+
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_SIZE = 800; 
+                        let w = img.width, h = img.height;
+                        if (w > h && w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; }
+                        else if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                };
+            });
+        }
+
+        function removeUser(id) {
+            users = users.filter(u => u.id !== id);
+            save();
+        }
+
+        function restoreWinner(id) {
+            const idx = winners.findIndex(w => w.id === id);
+            if (idx !== -1) {
+                users.push(winners[idx]);
+                winners.splice(idx, 1);
+                save();
+            }
+        }
+
+        function save() {
+            sessionStorage.setItem('session_draw_v5', JSON.stringify(users));
+            sessionStorage.setItem('session_winners_v5', JSON.stringify(winners));
+            render();
+        }
+
+        function manualSave() { save(); alert("บันทึกข้อมูลแล้ว ข้อมูลจะถูกล้างเมื่อปิด Browser"); }
+
+        function render() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = users.map((u, i) => `
+                <div class="user-card" id="card-${i}">
+                    <button class="delete-btn" onclick="removeUser(${u.id})" title="ลบออก">
+                        <svg viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>
+                    </button>
+                    <div class="img-wrapper"><img src="${u.img}"></div>
+                    <span>${u.name}</span>
+                </div>
+            `).join('');
+            document.getElementById('count').innerText = users.length;
+            const winList = document.getElementById('winnerList');
+            winList.innerHTML = winners.map(w => `
+                <div class="winner-item">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${w.img}"><span>${w.name}</span>
+                    </div>
+                    <button class="restore-btn" onclick="restoreWinner(${w.id})" style="background:#1e90ff; color:white; border:none; border-radius:5px; cursor:pointer; padding:5px;">↩</button>
+                </div>
+            `).join('');
+        }
+
+        function startRandom() {
+            if (users.length < 2) return alert("ต้องการอย่างน้อย 2 คน");
+            document.getElementById('spinBtn').disabled = true;
+            let currentStep = 0;
+            let totalSteps = users.length * 5 + Math.floor(Math.random() * users.length);
+            let speed = 50;
+            function run() {
+                document.querySelectorAll('.user-card').forEach(c => c.classList.remove('active'));
+                let idx = currentStep % users.length;
+                document.getElementById(`card-${idx}`).classList.add('active');
+                let t = document.getElementById('tickSound'); t.currentTime = 0; t.play().catch(()=>{});
+                currentStep++;
+                if (currentStep < totalSteps) {
+                    if (totalSteps - currentStep < 10) speed += 50;
+                    setTimeout(run, speed);
+                } else {
+                    document.getElementById('spinBtn').disabled = false;
+                    selectedWinner = users[idx];
+                    showWinner(selectedWinner);
+                }
+            }
+            run();
+        }
+
+        function showWinner(u) {
+            document.getElementById('winnerName').innerText = u.name;
+            document.getElementById('winnerImg').src = u.img;
+            document.getElementById('resultModal').style.display = 'block';
+            document.getElementById('cheerSound').play().catch(()=>{});
+            confetti({ particleCount: 200, spread: 70, origin: { y: 0.6 } });
+        }
+
+        function confirmWinner() {
+            const idx = users.findIndex(u => u.id === selectedWinner.id);
+            winners.unshift(users[idx]);
+            users.splice(idx, 1);
+            save();
+            closeModal();
+        }
+
+        function closeModal() { 
+            document.getElementById('resultModal').style.display = 'none'; 
+            document.querySelectorAll('.user-card').forEach(c => c.classList.remove('active'));
+        }
+
+        function resetData() { if(confirm("ล้างข้อมูลทั้งหมด?")) { users=[]; winners=[]; sessionStorage.clear(); render(); } }
+
+        render();
+    </script>
+</body>
+</html>
